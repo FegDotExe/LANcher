@@ -48,14 +48,14 @@ class SocketHandler():
 
             filesize=int(os.path.getsize(file_path))#Get file size
             print(filesize)
-            self.connection.send(bytes(str(filesize),"utf-8"))#Send file size
+            self.connection.send(filesize.to_bytes(len(str(filesize)),"big"))#Send file size
 
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
             some_bytes=send_file.read(1024)
             current_size=1024
             while some_bytes:
-                print("Progress: %i/%i"%(current_size,filesize),end="\r")
+                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 self.connection.send(some_bytes)
                 some_bytes=send_file.read(1024)
                 current_size+=1024
@@ -67,13 +67,13 @@ class SocketHandler():
                 file_path=input("Enter the path where you want to save the file\n>")
             self.wait_for_both()
 
-            filesize=int(self.connection.recv(1024).decode("utf-8"))
+            filesize=int.from_bytes(self.connection.recv(1024),"big")
 
             current_size=1024
             write_file=open(file_path,"wb")
             some_bytes=self.connection.recv(1024)
             while some_bytes:
-                print("Progress: %i/%i"%(current_size,filesize),end="\r")
+                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(1024)
                 current_size+=1024
