@@ -47,6 +47,7 @@ class SocketHandler():
             self.wait_for_both()
 
             filesize=int(os.path.getsize(file_path))#Get file size
+            print(filesize)
             self.connection.send(bytes(str(filesize),"utf-8"))#Send file size
 
             #This thing is when it actually sends the file
@@ -115,6 +116,9 @@ if operation_type=="0":
     socket_handler.set_handling(mode)
     socket_handler.transfer_file()
 
+def pget(stringa):
+    print(stringa)
+    return stringa
 
 if operation_type=="1":
     this_socket=socket.socket()
@@ -122,6 +126,7 @@ if operation_type=="1":
     host_ip=settings_dict["ip"]
     while host_ip=="":
         host_ip=input("Write the host ip\n>")
+    print("Waiting for connection...")
     socket_handler.class_socket.connect((host_ip,settings_dict["port"]))
-    socket_handler.mode=this_socket.recv(1024).decode("utf-8")
+    socket_handler.mode=pget(this_socket.recv(1024).decode("utf-8"))#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get
     socket_handler.transfer_file()
