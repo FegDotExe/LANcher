@@ -47,8 +47,7 @@ class SocketHandler():
             self.wait_for_both()
 
             filesize=int(os.path.getsize(file_path))#Get file size
-            filesize=int("".join(filter(str.isdigit,str(filesize))))
-            self.connection.send(filesize.to_bytes(len(str(filesize)),"little"))#Send file size
+            self.connection.send(bytes(str(filesize),"utf-8"))#Send file size
 
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
@@ -67,7 +66,7 @@ class SocketHandler():
                 file_path=input("Enter the path where you want to save the file\n>")
             self.wait_for_both()
 
-            filesize=int.from_bytes(self.connection.recv(1024),"little")
+            filesize=int(self.connection.recv(1024).decode("utf-8"))
 
             current_size=1024
             write_file=open(file_path,"wb")
