@@ -3,6 +3,10 @@ import sys
 import os
 import argparse
 
+def pget(stringa):
+    print(stringa)
+    return stringa
+
 settings_dict={"side":"","operation":"","ip":"","file_path":"","port":9999,"print_server_ips":True,"choose_host_ip":True}
 
 if __name__ == '__main__':
@@ -37,8 +41,8 @@ class SocketHandler():
             self.connection.send(bytes("0","utf-8"))
     def wait_for_both(self):
         print("Waiting...",end="\r")
-        self.connection.send(bytes("0","utf-8"))
-        self.connection.recv(1024)
+        self.send_string("")
+        self.receive_string()
     def transfer_file(self):
         if self.mode=="0":#SENDER
             file_path=settings_dict["file_path"]
@@ -89,13 +93,14 @@ class SocketHandler():
             stringa=str(stringa)+"§"
         i=0
         while i<len(stringa):
+            print(stringa[i])
             self.connection.send(bytes(stringa[i],"utf-8"))
             i+=1
     def receive_string(self):
         """Receive a string safely; the string is sent through send_string()"""
         output_string=bytes("","utf-8")
         while bytes("§","utf-8") not in output_string:
-            output_string=output_string+self.connection.recv(1)
+            output_string=output_string+pget(self.connection.recv(1))
         output_string=output_string.decode('utf-8')
         return output_string.replace("§","")
 
@@ -134,10 +139,6 @@ if operation_type=="0":
         mode=input("Do you want to send or to receive a file?\n0=send\n1=receive\n>")
     socket_handler.set_handling(mode)
     socket_handler.transfer_file()
-
-def pget(stringa):
-    print(stringa)
-    return stringa
 
 if operation_type=="1":
     this_socket=socket.socket()
