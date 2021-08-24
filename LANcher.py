@@ -47,7 +47,8 @@ class SocketHandler():
             self.wait_for_both()
 
             filesize=int(os.path.getsize(file_path))#Get file size
-            self.connection.send(bytes(str(filesize),"utf-8"))#Send file size
+            self.send_string(str(filesize))#Send file size
+            self.wait_for_both()
 
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
@@ -60,13 +61,16 @@ class SocketHandler():
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
+
+
         if self.mode=="1":#RECEIVER
             file_path=settings_dict["file_path"]
             while file_path=="":
                 file_path=input("Enter the path where you want to save the file\n>")
             self.wait_for_both()
 
-            filesize=int(self.connection.recv(1024).decode("utf-8"))
+            filesize=int(self.receive_string())
+            self.wait_for_both()
 
             current_size=1024
             write_file=open(file_path,"wb")
@@ -77,7 +81,23 @@ class SocketHandler():
                 some_bytes=self.connection.recv(1024)
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
+            write_file.close()
             print("\nDone!")
+    def send_string(self,stringa,add_footer=True):
+        """Send a string safely; the string is received through receive_string()"""
+        if add_footer:
+            stringa=str(stringa)+"§"
+        i=0
+        while i<len(stringa):
+            self.connection.send(bytes(stringa[i],"utf-8"))
+            i+=1
+    def receive_string(self):
+        """Receive a string safely; the string is sent through send_string()"""
+        output_string=bytes("","utf-8")
+        while bytes("§","utf-8") not in output_string:
+            output_string=output_string+self.connection.recv(1)
+        output_string=output_string.decode('utf-8')
+        return output_string.replace("§","")
 
 operation_type=settings_dict["side"]
 while operation_type not in ["0","1"]:
@@ -127,5 +147,5 @@ if operation_type=="1":
         host_ip=input("Write the host ip\n>")
     print("Waiting for connection...")
     socket_handler.class_socket.connect((host_ip,settings_dict["port"]))
-    socket_handler.mode=pget(this_socket.recv(1024).decode("utf-8"))#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get
+    socket_handler.mode=this_socket.recv(1024).decode("utf-8")#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get
     socket_handler.transfer_file()
