@@ -60,10 +60,9 @@ class SocketHandler():
             current_size=1024
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
-                if current_size==1024:
-                    print(some_bytes)
                 self.connection.send(some_bytes)
                 some_bytes=send_file.read(1024)
+                self.send_string(str(current_size))
                 #self.wait_for_both()
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
@@ -84,13 +83,10 @@ class SocketHandler():
             some_bytes=self.connection.recv(1024)
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
-                if current_size==1024:
-                    print(some_bytes)
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(1024)
                 #self.wait_for_both()#FIXME: broken af
-                current_size+=1024
-                current_size=filesize if current_size>filesize else current_size
+                current_size=int(self.receive_string())
             write_file.close()
             print("\nDone!")
     def send_string(self,stringa,add_footer=True):
