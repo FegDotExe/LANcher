@@ -51,18 +51,24 @@ class SocketHandler():
         if add_footer:
             stringa=str(stringa)+"§"
         i=0
-        while i<len(stringa):
-            #print(stringa[i])
+        stringa=bytes(stringa,"utf-8")
+        #print("Sending: "+str(stringa))
+        byte_list=list(stringa)
+        #print(byte_list)
+        #print(bytes(stringa,"utf-8"))
+        for single_byte in byte_list:
             #str(stringa[i])
-            self.connection.send(bytes(stringa[i],"utf-8"))
-            i+=1
+            self.connection.send(bytes([single_byte]))
     def receive_string(self):
         """Receive a string safely; the string is sent through send_string()"""
         output_string=bytes("","utf-8")
         while bytes("§","utf-8") not in output_string:
             output_string=b"".join([output_string,self.connection.recv(1)])
             #output_string=output_string+pget(self.connection.recv(1))
+        #print("---")
+        #print(output_string)
         output_string=output_string.decode('utf-8')
+        #print(output_string)
         return output_string.replace("§","")
 
     def transfer_file(self):
@@ -79,11 +85,12 @@ class SocketHandler():
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
             some_bytes=send_file.read(1024)
+            self.connection.send(some_bytes)
             current_size=1024
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
-                self.connection.send(some_bytes)
                 some_bytes=send_file.read(1024)
+                self.connection.send(some_bytes)
                 self.send_string(str(current_size))
                 #self.wait_for_both()
                 current_size+=1024
