@@ -9,7 +9,7 @@ def pget(stringa):
 def random_return(stringa):
     return stringa
 
-settings_dict={"side":"","operation":"","ip":"","file_path":"","port":9999,"print_server_ips":True,"choose_host_ip":True}
+settings_dict={"side":"","operation":"","ip":"","file_path":"","port":9999,"print_server_ips":True,"choose_host_ip":True,"band_width":1024}
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
@@ -17,12 +17,14 @@ if __name__ == '__main__':
     parser.add_argument("--operation",help="Choose which action to perform. 0=send file; 1=receive file")
     parser.add_argument("--ip",help="Specify the ipv4 adress which will host the server/to which the client will connect")
     parser.add_argument("--file_path",help="Specify the path of the file to upload/where to download the file")
+    parser.add_argument("--band_width",help="Specify how many bytes are sent at once")
     args=parser.parse_args()
     
     settings_dict["side"]=args.side if args.side!=None else ""
     settings_dict["operation"]=args.operation if args.operation!=None else ""
     settings_dict["ip"]=args.ip if args.ip!=None else ""
     settings_dict["file_path"]=args.file_path if args.file_path!=None else ""
+    settings_dict["band_width"]=args.band_width if args.band_width!=None else 1024
 
 def pretty_ip(ip_tuple):
     """Takes a tuple of (host,port) and returns a string of host:port"""
@@ -83,16 +85,16 @@ class SocketHandler():
 
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
-            some_bytes=send_file.read(1024)
+            some_bytes=send_file.read(settings_dict["band_width"])
             self.connection.send(some_bytes)
-            current_size=1024
+            current_size=settings_dict["band_width"]
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
-                some_bytes=send_file.read(1024)
+                some_bytes=send_file.read(settings_dict["band_width"])
                 self.connection.send(some_bytes)
                 #self.send_string(str(current_size))
                 self.wait_for_both()
-                current_size+=1024
+                current_size+=settings_dict["band_width"]
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
 
@@ -106,16 +108,16 @@ class SocketHandler():
             filesize=int(self.receive_string())
             self.wait_for_both()
 
-            current_size=1024
+            current_size=settings_dict["band_width"]
             write_file=open(file_path,"wb")
-            some_bytes=self.connection.recv(1024)
+            some_bytes=self.connection.recv(settings_dict["band_width"])
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 write_file.write(some_bytes)
-                some_bytes=self.connection.recv(1024)
+                some_bytes=self.connection.recv(settings_dict["band_width"])
                 self.wait_for_both()
                 #current_size=int(self.receive_string())
-                current_size+=1024
+                current_size+=settings_dict["band_width"]
                 current_size=filesize if current_size>filesize else current_size
             write_file.close()
             print("\nDone!")
