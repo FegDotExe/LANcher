@@ -42,7 +42,6 @@ class SocketHandler():
             self.mode="1"
             self.send_string("0")
     def wait_for_both(self):
-        print("Waiting...",end="\r")
         self.send_string("")
         self.receive_string()
     
@@ -91,8 +90,8 @@ class SocketHandler():
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 some_bytes=send_file.read(1024)
                 self.connection.send(some_bytes)
-                self.send_string(str(current_size))
-                #self.wait_for_both()
+                #self.send_string(str(current_size))
+                self.wait_for_both()
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
@@ -114,7 +113,10 @@ class SocketHandler():
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(1024)
-                current_size=int(self.receive_string())
+                self.wait_for_both()
+                #current_size=int(self.receive_string())
+                current_size+=1024
+                current_size=filesize if current_size>filesize else current_size
             write_file.close()
             print("\nDone!")
 
