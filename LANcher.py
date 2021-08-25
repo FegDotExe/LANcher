@@ -24,7 +24,7 @@ if __name__ == '__main__':
     settings_dict["operation"]=args.operation if args.operation!=None else ""
     settings_dict["ip"]=args.ip if args.ip!=None else ""
     settings_dict["file_path"]=args.file_path if args.file_path!=None else ""
-    settings_dict["band_width"]=args.band_width if args.band_width!=None else 1024
+    settings_dict["band_width"]=int(args.band_width) if args.band_width!=None else 1024
 
 def pretty_ip(ip_tuple):
     """Takes a tuple of (host,port) and returns a string of host:port"""
@@ -45,7 +45,9 @@ class SocketHandler():
             self.send_string("0")
     def wait_for_both(self):
         self.send_string("")
-        self.receive_string()
+        out=self.receive_string()
+        if out!="§":
+            print(out)
     
     def send_string(self,stringa,add_footer=True):
         """Send a string safely; the string is received through receive_string()"""
@@ -93,7 +95,7 @@ class SocketHandler():
                 some_bytes=send_file.read(settings_dict["band_width"])
                 self.connection.send(some_bytes)
                 #self.send_string(str(current_size))
-                self.wait_for_both()
+                self.wait_for_both()#TODO: add a non-safe mode
                 current_size+=settings_dict["band_width"]
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
