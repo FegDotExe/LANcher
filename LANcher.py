@@ -35,10 +35,10 @@ class SocketHandler():
         """Either sends or receives a file, depending on the input mode"""
         if mode=="0":
             self.mode="0"
-            self.connection.send(bytes("1","utf-8"))
+            self.send_string("1")
         elif mode=="1":
             self.mode="1"
-            self.connection.send(bytes("0","utf-8"))
+            self.send_string("0")
     def wait_for_both(self):
         print("Waiting...",end="\r")
         self.send_string("")
@@ -60,8 +60,11 @@ class SocketHandler():
             current_size=1024
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
+                if current_size==1024:
+                    print(some_bytes)
                 self.connection.send(some_bytes)
                 some_bytes=send_file.read(1024)
+                #self.wait_for_both()
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
@@ -81,8 +84,11 @@ class SocketHandler():
             some_bytes=self.connection.recv(1024)
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
+                if current_size==1024:
+                    print(some_bytes)
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(1024)
+                #self.wait_for_both()#FIXME: broken af
                 current_size+=1024
                 current_size=filesize if current_size>filesize else current_size
             write_file.close()
@@ -109,6 +115,7 @@ while operation_type not in ["0","1"]:
     operation_type=input("Select which one you want to be\n0=server\n1=client\n>")
 
 if operation_type=="0":
+    print("Started as server")
     #Socket creation
     this_socket=socket.socket()
     socket_handler=SocketHandler(this_socket)
@@ -137,10 +144,11 @@ if operation_type=="0":
     mode=settings_dict["operation"]
     while mode not in ["0","1"]:
         mode=input("Do you want to send or to receive a file?\n0=send\n1=receive\n>")
-    socket_handler.set_handling(mode)
+    socket_handler.set_handling(mode)#Sends send/receive mode; #Link1#
     socket_handler.transfer_file()
 
 if operation_type=="1":
+    print("Started as client")
     this_socket=socket.socket()
     socket_handler=SocketHandler(this_socket)
     host_ip=settings_dict["ip"]
@@ -148,5 +156,6 @@ if operation_type=="1":
         host_ip=input("Write the host ip\n>")
     print("Waiting for connection...")
     socket_handler.class_socket.connect((host_ip,settings_dict["port"]))
-    socket_handler.mode=this_socket.recv(1024).decode("utf-8")#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get
+    print("Connection established with %s:%s"%(str(host_ip),str(settings_dict["port"])))
+    socket_handler.mode=socket_handler.receive_string()#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get; #Link1#
     socket_handler.transfer_file()
