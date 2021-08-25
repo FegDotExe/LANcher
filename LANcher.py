@@ -46,7 +46,7 @@ class SocketHandler():
     def wait_for_both(self):
         self.send_string("")
         out=self.receive_string()
-        if out!="§":
+        if out!="":
             print(out)
     
     def send_string(self,stringa,add_footer=True):
@@ -75,7 +75,8 @@ class SocketHandler():
         return output_string.replace("§","")
 
     def transfer_file(self):
-        if self.mode=="0":#SENDER
+        #SENDER
+        if self.mode=="0":
             file_path=settings_dict["file_path"]
             while file_path=="":
                 file_path=input("Enter the path of the file you want to send\n>")
@@ -95,13 +96,13 @@ class SocketHandler():
                 some_bytes=send_file.read(settings_dict["band_width"])
                 self.connection.send(some_bytes)
                 #self.send_string(str(current_size))
-                self.wait_for_both()#TODO: add a non-safe mode
+                #self.wait_for_both()#TODO: add a non-safe mode
                 current_size+=settings_dict["band_width"]
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
 
-
-        if self.mode=="1":#RECEIVER
+        #RECEIVER
+        if self.mode=="1":
             file_path=settings_dict["file_path"]
             while file_path=="":
                 file_path=input("Enter the path where you want to save the file\n>")
@@ -110,16 +111,16 @@ class SocketHandler():
             filesize=int(self.receive_string())
             self.wait_for_both()
 
-            current_size=settings_dict["band_width"]
             write_file=open(file_path,"wb")
             some_bytes=self.connection.recv(settings_dict["band_width"])
+            current_size=sys.getsizeof(some_bytes)
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(settings_dict["band_width"])
-                self.wait_for_both()
+                #self.wait_for_both()
                 #current_size=int(self.receive_string())
-                current_size+=settings_dict["band_width"]
+                current_size+=sys.getsizeof(some_bytes)
                 current_size=filesize if current_size>filesize else current_size
             write_file.close()
             print("\nDone!")
