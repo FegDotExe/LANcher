@@ -6,6 +6,8 @@ import argparse
 def pget(stringa):
     print(stringa)
     return stringa
+def random_return(stringa):
+    return stringa
 
 settings_dict={"side":"","operation":"","ip":"","file_path":"","port":9999,"print_server_ips":True,"choose_host_ip":True}
 
@@ -43,6 +45,26 @@ class SocketHandler():
         print("Waiting...",end="\r")
         self.send_string("")
         self.receive_string()
+    
+    def send_string(self,stringa,add_footer=True):
+        """Send a string safely; the string is received through receive_string()"""
+        if add_footer:
+            stringa=str(stringa)+"§"
+        i=0
+        while i<len(stringa):
+            #print(stringa[i])
+            #str(stringa[i])
+            self.connection.send(bytes(stringa[i],"utf-8"))
+            i+=1
+    def receive_string(self):
+        """Receive a string safely; the string is sent through send_string()"""
+        output_string=bytes("","utf-8")
+        while bytes("§","utf-8") not in output_string:
+            output_string=b"".join([output_string,self.connection.recv(1)])
+            #output_string=output_string+pget(self.connection.recv(1))
+        output_string=output_string.decode('utf-8')
+        return output_string.replace("§","")
+
     def transfer_file(self):
         if self.mode=="0":#SENDER
             file_path=settings_dict["file_path"]
@@ -85,26 +107,9 @@ class SocketHandler():
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
                 write_file.write(some_bytes)
                 some_bytes=self.connection.recv(1024)
-                #self.wait_for_both()#FIXME: broken af
                 current_size=int(self.receive_string())
             write_file.close()
             print("\nDone!")
-    def send_string(self,stringa,add_footer=True):
-        """Send a string safely; the string is received through receive_string()"""
-        if add_footer:
-            stringa=str(stringa)+"§"
-        i=0
-        while i<len(stringa):
-            print(stringa[i])
-            self.connection.send(bytes(stringa[i],"utf-8"))
-            i+=1
-    def receive_string(self):
-        """Receive a string safely; the string is sent through send_string()"""
-        output_string=bytes("","utf-8")
-        while bytes("§","utf-8") not in output_string:
-            output_string=output_string+pget(self.connection.recv(1))
-        output_string=output_string.decode('utf-8')
-        return output_string.replace("§","")
 
 operation_type=settings_dict["side"]
 while operation_type not in ["0","1"]:
