@@ -1,0 +1,2 @@
+LANcher.exe --help
+pause
