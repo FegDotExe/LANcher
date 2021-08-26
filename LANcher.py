@@ -112,6 +112,10 @@ class SocketHandler():
             self.send_string(os.path.basename(file_path))#Link2#
             self.wait_for_both()
 
+            self.send_string(str(settings_dict["buffer"]))#Link3#
+            cprint("$CYAN(Started sending file with byte buffer of %i)"%(settings_dict["buffer"]))
+            self.wait_for_both()
+
             filesize=int(os.path.getsize(file_path))#Get file size
             self.send_string(str(filesize))#Send file size
             self.wait_for_both()
@@ -162,7 +166,7 @@ class SocketHandler():
             print(colorize("$GREEN(Waiting for sender to choose file...)"))
 
             #Choose file name
-            filename=self.receive_string()
+            filename=self.receive_string()#Link2#
             if settings_dict["file_name"]==None:
                 custom_file_name=input(colorize("$MAGENTA(Host is sending a file named %s. Press enter to save it as such or type a different name)\n>"%(filename)))
             else:
@@ -175,11 +179,15 @@ class SocketHandler():
                 file_path=file_path+custom_file_name
             self.wait_for_both()
 
+            buffer=int(self.receive_string())#Link3#
+            cprint("$CYAN(Started receiving file with byte buffer of %i)"%(buffer))
+            self.wait_for_both()
+
             filesize=int(self.receive_string())
             self.wait_for_both()
 
             write_file=open(file_path,"wb")
-            some_bytes=self.connection.recv(settings_dict["buffer"])
+            some_bytes=self.connection.recv(buffer)
             
             current_size=len(some_bytes)
 
@@ -190,7 +198,7 @@ class SocketHandler():
             while some_bytes:
                 print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%"+" | ETA: %s | Elapsed: %s"%(str(datetime.timedelta(seconds=int(eta))),str(datetime.timedelta(seconds=int(total_time)))),end="\r")
                 write_file.write(some_bytes)
-                some_bytes=self.connection.recv(settings_dict["buffer"])
+                some_bytes=self.connection.recv(buffer)
                 
                 #Time calculation
                 end_time=datetime.datetime.now()
