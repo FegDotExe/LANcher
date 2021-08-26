@@ -2,14 +2,32 @@ import socket
 import sys
 import os
 import argparse
+from colorama import  Fore, Style, Back
+from re import sub
+import datetime
 
-def pget(stringa):
-    print(stringa)
+def colorize(stringa):
+    """Prints the given string with cool custom colors"""
+    while "$" in stringa:
+        stringa=sub("\$BMAGENTA\((.*)\)",Back.MAGENTA+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$BLUE\((.*)\)",Fore.BLUE+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$CYAN\((.*)\)",Fore.CYAN+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$MAGENTA\((.*)\)",Fore.MAGENTA+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$GREEN\((.*)\)",Fore.GREEN+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$RED\((.*)\)",Fore.RED+"\g<1>"+Style.RESET_ALL,stringa)
+        stringa=sub("\$YELLOW\((.*)\)",Fore.YELLOW+"\g<1>"+Style.RESET_ALL,stringa)
     return stringa
-def random_return(stringa):
-    return stringa
+def cprint(stringa):
+    """The same as writing print(colorize(stringa))"""
+    print(colorize(stringa))
 
-settings_dict={"side":"","operation":"","ip":"","file_path":"","port":9999,"print_server_ips":True,"choose_host_ip":True,"band_width":1024}
+def rinput(stringa,valid_input_list,output_value=""):
+    outvalue=output_value
+    while outvalue not in valid_input_list:
+        outvalue=input(stringa)
+    return outvalue
+
+settings_dict={"side":"","operation":"","ip":"","file_path":"","file_name":None,"port":9999,"print_server_ips":True,"choose_host_ip":True,"buffer":1024}
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
@@ -17,14 +35,16 @@ if __name__ == '__main__':
     parser.add_argument("--operation",help="Choose which action to perform. 0=send file; 1=receive file")
     parser.add_argument("--ip",help="Specify the ipv4 adress which will host the server/to which the client will connect")
     parser.add_argument("--file_path",help="Specify the path of the file to upload/where to download the file")
-    parser.add_argument("--band_width",help="Specify how many bytes are sent at once")
+    parser.add_argument("--file_name",help="Specify the name of the file you will download")
+    parser.add_argument("--buffer",help="Specify how many bytes are sent at once")
     args=parser.parse_args()
     
     settings_dict["side"]=args.side if args.side!=None else ""
     settings_dict["operation"]=args.operation if args.operation!=None else ""
     settings_dict["ip"]=args.ip if args.ip!=None else ""
     settings_dict["file_path"]=args.file_path if args.file_path!=None else ""
-    settings_dict["band_width"]=int(args.band_width) if args.band_width!=None else 1024
+    settings_dict["file_name"]=args.file_name if args.file_name!=None else None
+    settings_dict["buffer"]=int(args.buffer) if args.buffer!=None else 1024
 
 def pretty_ip(ip_tuple):
     """Takes a tuple of (host,port) and returns a string of host:port"""
@@ -77,9 +97,19 @@ class SocketHandler():
     def transfer_file(self):
         #SENDER
         if self.mode=="0":
-            file_path=settings_dict["file_path"]
+            file_path=""
+            second_time=False
             while file_path=="":
-                file_path=input("Enter the path of the file you want to send\n>")
+                if settings_dict["file_path"]=="" or second_time:
+                    file_path=input(colorize("$MAGENTA(Enter the path of the file you want to send)\n>"))
+                else:
+                    file_path=settings_dict["file_path"]
+                if not os.path.isfile(file_path):#Redo if unvalid file
+                    cprint("$YELLOW(The path you entered does not lead to a file)")
+                    file_path=""
+                    second_time=True
+            print(colorize("$GREEN(Waiting for receiver to choose destination directory...)"))
+            self.send_string(os.path.basename(file_path))#Link2#
             self.wait_for_both()
 
             filesize=int(os.path.getsize(file_path))#Get file size
@@ -88,49 +118,95 @@ class SocketHandler():
 
             #This thing is when it actually sends the file
             send_file=open(file_path,"rb")
-            some_bytes=send_file.read(settings_dict["band_width"])
+            some_bytes=send_file.read(settings_dict["buffer"])
             self.connection.send(some_bytes)
-            current_size=settings_dict["band_width"]
+            
+            current_size=settings_dict["buffer"]
+            
+            #Time calculation
+            start_time=datetime.datetime.now()
+            eta=0
+            total_time=0
             while some_bytes:
-                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
-                some_bytes=send_file.read(settings_dict["band_width"])
+                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%"+" | ETA: %s | Elapsed: %s"%(str(datetime.timedelta(seconds=int(eta))),str(datetime.timedelta(seconds=int(total_time)))),end="\r")
+                some_bytes=send_file.read(settings_dict["buffer"])
                 self.connection.send(some_bytes)
-                #self.send_string(str(current_size))
-                #self.wait_for_both()#TODO: add a non-safe mode
-                current_size+=settings_dict["band_width"]
+
+                #Time calculation
+                end_time=datetime.datetime.now()
+                total_time=(end_time-start_time).total_seconds()
+                eta=(((filesize-current_size)*total_time)/current_size)
+
+                current_size+=settings_dict["buffer"]
                 current_size=filesize if current_size>filesize else current_size
             print("\nDone!")
 
         #RECEIVER
         if self.mode=="1":
-            file_path=settings_dict["file_path"]
+            file_path=""
             while file_path=="":
-                file_path=input("Enter the path where you want to save the file\n>")
+                if settings_dict["file_path"]!="":
+                    file_path=settings_dict["file_path"]
+                else:
+                    file_path=input(colorize("$MAGENTA(Enter the directory where you want to save the file)\n>"))
+                if not os.path.isdir(file_path):
+                    if settings_dict["file_path"]!="":
+                        handling_directory="0"
+                    else:
+                        handling_directory=rinput(colorize("$YELLOW(The directory you entered does not exist or is not valid)\n$MAGENTA(Select the option you prefer)\n$BMAGENTA(0|Create directory)\n$BMAGENTA(1|Enter a different directory)\n>"),["0","1"])
+                    if handling_directory=="0":
+                        os.makedirs(file_path)
+                        cprint("$CYAN(Created a new directory: %s)"%(file_path))
+                    else:
+                        file_path=""
+            print(colorize("$GREEN(Waiting for sender to choose file...)"))
+
+            #Choose file name
+            filename=self.receive_string()
+            if settings_dict["file_name"]==None:
+                custom_file_name=input(colorize("$MAGENTA(Host is sending a file named %s. Press enter to save it as such or type a different name)\n>"%(filename)))
+            else:
+                custom_file_name=settings_dict["file_name"]
+
+            #Create path
+            if custom_file_name=="":
+                file_path=file_path+filename
+            else:
+                file_path=file_path+custom_file_name
             self.wait_for_both()
 
             filesize=int(self.receive_string())
             self.wait_for_both()
 
             write_file=open(file_path,"wb")
-            some_bytes=self.connection.recv(settings_dict["band_width"])
-            current_size=sys.getsizeof(some_bytes)
+            some_bytes=self.connection.recv(settings_dict["buffer"])
+            
+            current_size=len(some_bytes)
+
+            #Time calculation
+            start_time=datetime.datetime.now()
+            eta=0
+            total_time=0
             while some_bytes:
-                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%",end="\r")
+                print("Progress: %i/%i-%i"%(current_size,filesize,((current_size*100)/filesize))+"%"+" | ETA: %s | Elapsed: %s"%(str(datetime.timedelta(seconds=int(eta))),str(datetime.timedelta(seconds=int(total_time)))),end="\r")
                 write_file.write(some_bytes)
-                some_bytes=self.connection.recv(settings_dict["band_width"])
-                #self.wait_for_both()
-                #current_size=int(self.receive_string())
-                current_size+=sys.getsizeof(some_bytes)
-                current_size=filesize if current_size>filesize else current_size
+                some_bytes=self.connection.recv(settings_dict["buffer"])
+                
+                #Time calculation
+                end_time=datetime.datetime.now()
+                total_time=(end_time-start_time).total_seconds()
+                eta=(((filesize-current_size)*total_time)/current_size)
+
+                current_size+=len(some_bytes)
             write_file.close()
             print("\nDone!")
 
 operation_type=settings_dict["side"]
 while operation_type not in ["0","1"]:
-    operation_type=input("Select which one you want to be\n0=server\n1=client\n>")
+    operation_type=input(colorize("$MAGENTA(Select which one you want to be)\n$BMAGENTA(0|server)\n$BMAGENTA(1|client)\n>"))
 
 if operation_type=="0":
-    print("Started as server")
+    print(colorize("$CYAN(Started as server)"))
     #Socket creation
     this_socket=socket.socket()
     socket_handler=SocketHandler(this_socket)
@@ -146,31 +222,34 @@ if operation_type=="0":
     if settings_dict["choose_host_ip"]:
         host_ip=settings_dict["ip"]
         while host_ip=="":
-            host_ip=input("Insert the ip you want to use as host\n>")
+            host_ip=input(colorize("$MAGENTA(Insert the ip you want to use as host)\n>"))
     else:
         host_ip=useable_ip_list[0]
     socket_handler.class_socket.bind((host_ip,settings_dict["port"]))
     socket_handler.class_socket.listen(1)
-    print("Waiting for connection...")
+    print(colorize("$GREEN(Waiting for connection...)"))
     socket_handler.connection, socket_handler.adress=socket_handler.class_socket.accept()
 
     #Choosing mode: server only; between send and receive
-    print("Connection established with %s:%s"%(str(socket_handler.adress[0]),str(socket_handler.adress[1])))
+    print(colorize("$CYAN(Connection established with %s:%s)"%(str(socket_handler.adress[0]),str(socket_handler.adress[1]))))
     mode=settings_dict["operation"]
     while mode not in ["0","1"]:
-        mode=input("Do you want to send or to receive a file?\n0=send\n1=receive\n>")
+        mode=input(colorize("$MAGENTA(Do you want to send or to receive a file?)\n$BMAGENTA(0|send)\n$BMAGENTA(1|receive)\n>"))
+    print(colorize("$CYAN(You chose sending a file)" if mode=="0" else "$CYAN(You chose receiving a file)"))
     socket_handler.set_handling(mode)#Sends send/receive mode; #Link1#
     socket_handler.transfer_file()
 
 if operation_type=="1":
-    print("Started as client")
+    print(colorize("$CYAN(Started as client)"))
     this_socket=socket.socket()
     socket_handler=SocketHandler(this_socket)
     host_ip=settings_dict["ip"]
     while host_ip=="":
-        host_ip=input("Write the host ip\n>")
-    print("Waiting for connection...")
+        host_ip=input(colorize("$MAGENTA(Write the host ip)\n>"))
+    print(colorize("$GREEN(Waiting for connection...)"))
     socket_handler.class_socket.connect((host_ip,settings_dict["port"]))
-    print("Connection established with %s:%s"%(str(host_ip),str(settings_dict["port"])))
+    print(colorize("$CYAN(Connection established with %s:%s)"%(str(host_ip),str(settings_dict["port"]))))
+    print(colorize("$GREEN(Waiting for host to choose mode...)"))
     socket_handler.mode=socket_handler.receive_string()#Expects to receive send/receive mode; seems to cause bugs by getting what it should not get; #Link1#
+    print(colorize("$CYAN(Host chose you will send a file)" if socket_handler.mode=="0" else "$CYAN(Host chose you will receive a file)"))
     socket_handler.transfer_file()
